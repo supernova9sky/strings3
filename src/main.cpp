@@ -60,59 +60,106 @@ struct str_info_t
   str_enc_type_t str_enc;
 };
 
-// inline u0
-// create_str_map(const u8& byte)
-// {
-
-// }
-
-str_enc_type_t
-get_str_enc(const std::string_view& str)
+bool
+is_str_base64(const std::string_view& str)
 {
   if (str.length() % 4 == 0)
   {
-    return str_enc_type_t::base64;
+    return false;
   }
+
+  for (const char& c : str)
+  {
+    if ((std::isalnum(c) == false) and (c != '+') and (c != '/') and (c != '='))
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool
+is_str_xor(const std::string_view& str)
+{
+  u64 unprintable_chars{0};
 
   for (const char& c : str)
   {
     if (std::isprint(c) == false)
     {
-      return str_enc_type_t::XOR;
-    }
-
-    if ((std::isalnum(c) == false) and (c == '+') and (c == '/') and (c == '='))
-    {
-      return str_enc_type_t::base64;
+      ++unprintable_chars;
     }
   }
 
+  if (unprintable_chars > 0)
+  {
+    return true;
+  }
+  return false;
+}
+
+bool
+is_str_plain(const std::string_view& str)
+{
+  for (const char& c : str)
+  {
+    if (std::isprint(c) == false)
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+str_enc_type_t
+get_str_enc(const std::string_view& str)
+{
+  if (is_str_base64(str) == true)
+  {
+    return str_enc_type_t::base64;
+  }
+  else if (is_str_xor(str) == true)
+  {
+    return str_enc_type_t::XOR;
+  }
   return str_enc_type_t::plain;
 }
 
-std::vector<std::pair<str_info_t, std::string>>
+std::pair<std::string, bool>
+process_byte(const std::string& buff, const u8& byte)
+{
+  if (byte_to_char_type(byte) == char_type_t::ascii_char)
+  {
+    return {buff + static_cast<char>(byte), false};
+  }
+  
+  return {buff, true};
+}
+
+using strings_output_t = std::vector<std::pair<str_info_t, std::string>>;
+
+strings_output_t
 extract_strings(const std::span<u8> bytes)
 {
-  std::vector<std::pair<str_info_t, std::string>> output{};
-
+  strings_output_t output{};
+  std::string buff{};
   u64 offset{};
+
   for (const u8& byte : bytes)
   {
-    offset += 1;
+    ++offset;
 
-    static std::string buff{};
-    const char_type_t char_type = byte_to_char_type(byte);
+    auto [new_buff, should_finalize] = process_byte(buff, byte);
 
-    if (char_type == char_type_t::ascii_char)
+    if (should_finalize == false)
     {
-      buff += static_cast<char>(byte);
+      buff = std::move(new_buff);
     }
-    else if (buff.size() > 5)
+    else if (new_buff.size() > 5)
     {
-      const str_info_t info{.addr = offset, .utf_type = utf_type_t::utf8, .str_enc = get_str_enc(buff)};
-      output.emplace_back(info, buff);
-
-      offset = 0;
+      const str_info_t info{.addr = offset, .utf_type = utf_type_t::utf8, .str_enc = get_str_enc(new_buff)};
+      output.emplace_back(info, new_buff);
       buff.clear();
     }
   }
@@ -159,7 +206,7 @@ main(const i32 argc, const char* const argv[])
 
   for (const auto& [info, str] : extract_strings(file_contents))
   {
-    utils::log("0x%08llX | %07s -> %s\n", info.addr, decide(info.str_enc), str.c_str());
+    utils::log("0x%08llX | %-07s -> %s\n", info.addr, decide(info.str_enc), str.c_str());
   }
   return 0;
 }
