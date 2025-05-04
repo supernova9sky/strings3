@@ -1,6 +1,8 @@
 #pragma once
+
 #include <filesystem>
 #include <vector>
+
 #include "headers/common.hpp"
 
 namespace files

@@ -1,10 +1,13 @@
 #pragma once
+
 #include "common.hpp"
-#include <utility>
-#include <vector>
-#include <windows.h>
+
+#include <map>
+#include <cmath>
 #include <string>
-#include <winternl.h>
+#include <utility>
+#include <numbers>
+#include <algorithm>
 
 namespace utils
 {
@@ -14,90 +17,82 @@ enum log_status_t : u8
   ERR
 };
 
+enum class char_type_t
+{
+  unknown,
+  ascii_ctl_char,
+  ascii_char,
+  cont_byte,
+  /* TODO add handling for utf-16 and multibyte utf-8 */
+};
+
 template <log_status_t status = OK, unsigned short text_colour = 7>
 inline u0
 log(const std::string_view& fmt, auto&&... args)
 {
-  const static HANDLE std_handle = GetStdHandle(STD_OUTPUT_HANDLE);
   std::printf("[");
   switch (status)
   {
   case OK:
   {
-    SetConsoleTextAttribute(std_handle, 10);
-    std::printf("   OK   ");
+    //SetConsoleTextAttribute(std_handle, 10);
+    std::printf("\033[0;92m   OK   \033[0m");
     break;
   }
   case ERR:
   {
-    SetConsoleTextAttribute(std_handle, 12);
-    std::printf(" FAILED ");
+    //SetConsoleTextAttribute(std_handle, 12);
+    std::printf("\033[0;91m FAILED \033[0m");
     break;
   }
   }
-  SetConsoleTextAttribute(std_handle, text_colour);
+  //SetConsoleTextAttribute(std_handle, text_colour);
   std::printf("] ");
 
   std::printf(fmt.data(), std::forward<decltype(args)>(args)...);
 }
 
-inline HMODULE
-get_or_load_module(const std::string& name)
+inline
+char_type_t
+byte_to_char_type(const u8 byte)
 {
-  HMODULE result = GetModuleHandleA(name.c_str());
-  return (result != nullptr) ? result : LoadLibraryA(name.c_str());
+  if ((byte < 0x20) or (byte == 0x7F))
+  {
+    return char_type_t::ascii_ctl_char;
+  }
+
+  if ((byte >= 0x20) and (byte <= 0x7E))
+  {
+    return char_type_t::ascii_char;
+  }
+
+  if ((byte <= 0xBF) and (byte >= 0x80))
+  {
+    return char_type_t::cont_byte;
+  }
+
+  return char_type_t::unknown;
 }
 
-template <typename Def_t>
-inline static Def_t
-find_function(const std::string_view& module_name, const std::string_view& function_name)
+inline
+f32
+calc_shannon_entropy(const std::string_view& str)
 {
-  using module_info = std::pair<std::string, HMODULE>;
-  static std::vector<module_info> modules_vec{};
-  HMODULE hmod{nullptr};
+  f32 entropy{0};
+  const usize length = str.length();
+  std::map<char, f32> counts{};
+  std::ranges::for_each(str, [&counts](const char& c) { counts[c]++; });
 
-  for (const auto& [name, value] : modules_vec)
+  for (const auto& [c, count] : counts)
   {
-    if (name == module_name.data())
+    const f32 p_x = count / length;
+    if (p_x > 0)
     {
-      hmod = value;
+      entropy -= p_x * std::log(p_x) / std::numbers::ln2;
     }
   }
-  if (hmod == nullptr)
-  {
-    hmod = modules_vec.emplace_back(module_name, get_or_load_module(module_name.data())).second;
-  }
 
-  log("searching for %s in module %s at 0x%llX\n", function_name.data(), module_name.data(), hmod);
-  return reinterpret_cast<Def_t>(reinterpret_cast<u0*>(GetProcAddress(hmod, function_name.data())));
+  return entropy;
 }
 
-inline bool
-adjust_privilege(const ul privilege_number, const bool should_enable)
-{
-  using RtlAdjustPrivilege_t = NTSTATUS (*)(ul Privilege, bool Enable, bool Client, bool* WasEnabled);
-  auto RtlAdjustPrivilege    = find_function<RtlAdjustPrivilege_t>("ntdll.dll", "RtlAdjustPrivilege");
-  if (RtlAdjustPrivilege == nullptr)
-  {
-    log<utils::ERR>("couldn't locate RtlAdjustPrivilege\n");
-    return false;
-  }
-  log("found RtlAdjustPrivilege at 0x%llX\n", RtlAdjustPrivilege);
-
-  bool previous_state{};
-  NTSTATUS status = RtlAdjustPrivilege(privilege_number, should_enable, false, &previous_state);
-
-  if (NT_SUCCESS(status) == false)
-  {
-    log<utils::ERR>("RtlAdjustPrivilege failed, error code 0x%lX\n", status);
-    return false;
-  }
-  return true;
-}
-
-inline bool
-execute_syscall(const auto&&... args [[maybe_unused]], const u32 syscall_number)
-{
-  // TODO
-}
 } // namespace utils
