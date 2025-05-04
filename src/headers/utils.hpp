@@ -35,18 +35,15 @@ log(const std::string_view& fmt, auto&&... args)
   {
   case OK:
   {
-    //SetConsoleTextAttribute(std_handle, 10);
     std::printf("\033[0;92m   OK   \033[0m");
     break;
   }
   case ERR:
   {
-    //SetConsoleTextAttribute(std_handle, 12);
     std::printf("\033[0;91m FAILED \033[0m");
     break;
   }
   }
-  //SetConsoleTextAttribute(std_handle, text_colour);
   std::printf("] ");
 
   std::printf(fmt.data(), std::forward<decltype(args)>(args)...);

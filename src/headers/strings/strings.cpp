@@ -5,12 +5,22 @@
 namespace strings
 {
 std::pair<std::string, bool>
-process_byte(const std::string& buff, const u8& byte)
+process_byte(const std::string& buff, const u8 byte)
 {
+  if (byte == 0x0)
+  {
+    return {buff, true};
+  }
+
   if (utils::byte_to_char_type(byte) == utils::char_type_t::ascii_char)
   {
     return {buff + static_cast<char>(byte), false};
   }
+  // else if ((utils::byte_to_char_type(byte) == utils::char_type_t::ascii_ctl_char) and
+  //          (byte != '\a' and byte != '\v' and byte != '\b' and byte != '\n' and byte != '\r' and byte != '\0' and byte != '\x1F') and (buff.size() != 0))
+  // {
+  //   return {buff + static_cast<char>(byte), false};
+  // }
 
   return {buff, true};
 }
@@ -100,7 +110,7 @@ extract_strings(const std::span<u8> bytes)
     {
       buff = std::move(new_buff);
     }
-    else if ((new_buff.size() >= 2.75))
+    else if ((new_buff.size() >= 3))
     {
       if (utils::calc_shannon_entropy(new_buff) > 3)
       {
@@ -113,4 +123,4 @@ extract_strings(const std::span<u8> bytes)
 
   return output;
 }
-}
+} // namespace strings

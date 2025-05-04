@@ -29,7 +29,7 @@ struct str_info_t
   str_enc_type_t str_enc;
 };
 
-std::pair<std::string, bool> process_byte(const std::string& buff, const u8& byte);
+std::pair<std::string, bool> process_byte(const std::string& buff, const u8 byte);
 
 std::vector<std::pair<str_info_t, std::string>> extract_strings(const std::span<u8> bytes);
 
