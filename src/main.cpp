@@ -9,6 +9,9 @@
 #include "headers\files\files.hpp"
 #include "headers/utils.hpp"
 #include <map>
+#include <ranges>
+#include <numbers>
+#include <cmath>
 
 enum class char_type_t
 {
@@ -59,6 +62,24 @@ struct str_info_t
   utf_type_t utf_type;
   str_enc_type_t str_enc;
 };
+
+f32 calc_shannon_entropy(const std::string_view& str){
+    f32 entropy{0};
+    const usize length = str.length();
+    std::map<char, f32> counts{};
+    std::ranges::for_each(str, [&counts](const char& c) { counts[c]++; });
+
+    for (const auto& [c, count] : counts)
+    {
+      f32 p_x = count / length;
+      if (p_x > 0)
+      {
+        entropy -= p_x * std::log(p_x) / std::numbers::ln2;
+      }
+    }
+
+    return entropy;
+}
 
 bool
 is_str_base64(const std::string_view& str)
@@ -156,10 +177,13 @@ extract_strings(const std::span<u8> bytes)
     {
       buff = std::move(new_buff);
     }
-    else if (new_buff.size() > 5)
+    else if ((new_buff.size() >= 2.75))
     {
-      const str_info_t info{.addr = offset, .utf_type = utf_type_t::utf8, .str_enc = get_str_enc(new_buff)};
-      output.emplace_back(info, new_buff);
+      if (calc_shannon_entropy(new_buff) > 3)
+      {
+        const str_info_t info{.addr = offset, .utf_type = utf_type_t::utf8, .str_enc = get_str_enc(new_buff)};
+        output.emplace_back(info, new_buff);
+      }
       buff.clear();
     }
   }
@@ -208,5 +232,6 @@ main(const i32 argc, const char* const argv[])
   {
     utils::log("0x%08llX | %-07s -> %s\n", info.addr, decide(info.str_enc), str.c_str());
   }
+
   return 0;
 }
