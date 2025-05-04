@@ -63,22 +63,24 @@ struct str_info_t
   str_enc_type_t str_enc;
 };
 
-f32 calc_shannon_entropy(const std::string_view& str){
-    f32 entropy{0};
-    const usize length = str.length();
-    std::map<char, f32> counts{};
-    std::ranges::for_each(str, [&counts](const char& c) { counts[c]++; });
+f32
+calc_shannon_entropy(const std::string_view& str)
+{
+  f32 entropy{0};
+  const usize length = str.length();
+  std::map<char, f32> counts{};
+  std::ranges::for_each(str, [&counts](const char& c) { counts[c]++; });
 
-    for (const auto& [c, count] : counts)
+  for (const auto& [c, count] : counts)
+  {
+    const f32 p_x = count / length;
+    if (p_x > 0)
     {
-      f32 p_x = count / length;
-      if (p_x > 0)
-      {
-        entropy -= p_x * std::log(p_x) / std::numbers::ln2;
-      }
+      entropy -= p_x * std::log(p_x) / std::numbers::ln2;
     }
+  }
 
-    return entropy;
+  return entropy;
 }
 
 bool
@@ -154,7 +156,7 @@ process_byte(const std::string& buff, const u8& byte)
   {
     return {buff + static_cast<char>(byte), false};
   }
-  
+
   return {buff, true};
 }
 
