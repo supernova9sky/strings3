@@ -159,7 +159,7 @@ main(const i32 argc, const char* const argv[])
 
   for (const auto& [info, str] : extract_strings(file_contents))
   {
-    utils::log("0x%llX | %s -> %s\n", info.addr, decide(info.str_enc), str.c_str());
+    utils::log("0x%08llX | %07s -> %s\n", info.addr, decide(info.str_enc), str.c_str());
   }
   return 0;
 }
