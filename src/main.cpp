@@ -1,0 +1,165 @@
+#include <algorithm>
+#include <filesystem>
+#include <span>
+#include <string_view>
+#include <unordered_map>
+#include <vector>
+#include <windows.h>
+#include "headers/common.hpp"
+#include "headers\files\files.hpp"
+#include "headers/utils.hpp"
+#include <map>
+
+enum class char_type_t
+{
+  unknown,
+  ascii_ctl_char,
+  ascii_char,
+  cont_byte,
+  // ...
+};
+
+enum class str_enc_type_t
+{
+  plain,
+  XOR,
+  base64
+};
+
+enum class utf_type_t
+{
+  utf8,
+  utf16
+};
+
+char_type_t
+byte_to_char_type(const u8 byte)
+{
+  if ((byte < 0x20) or (byte == 0x7F))
+  {
+    return char_type_t::ascii_ctl_char;
+  }
+
+  if ((byte >= 0x20) and (byte <= 0x7E))
+  {
+    return char_type_t::ascii_char;
+  }
+
+  if ((byte <= 0xBF) and (byte >= 0x80))
+  {
+    return char_type_t::cont_byte;
+  }
+
+  return char_type_t::unknown;
+}
+
+struct str_info_t
+{
+  uptr addr;
+  utf_type_t utf_type;
+  str_enc_type_t str_enc;
+};
+
+// inline u0
+// create_str_map(const u8& byte)
+// {
+
+// }
+
+str_enc_type_t
+get_str_enc(const std::string_view& str)
+{
+  if (str.length() % 4 == 0)
+  {
+    return str_enc_type_t::base64;
+  }
+
+  for (const char& c : str)
+  {
+    if (std::isprint(c) == false)
+    {
+      return str_enc_type_t::XOR;
+    }
+
+    if ((std::isalnum(c) == false) and (c == '+') and (c == '/') and (c == '='))
+    {
+      return str_enc_type_t::base64;
+    }
+  }
+
+  return str_enc_type_t::plain;
+}
+
+std::vector<std::pair<str_info_t, std::string>>
+extract_strings(const std::span<u8> bytes)
+{
+  std::vector<std::pair<str_info_t, std::string>> output{};
+
+  u64 offset{};
+  for (const u8& byte : bytes)
+  {
+    offset += 1;
+
+    static std::string buff{};
+    const char_type_t char_type = byte_to_char_type(byte);
+
+    if (char_type == char_type_t::ascii_char)
+    {
+      buff += static_cast<char>(byte);
+    }
+    else if (buff.size() > 5)
+    {
+      const str_info_t info{.addr = offset, .utf_type = utf_type_t::utf8, .str_enc = get_str_enc(buff)};
+      output.emplace_back(info, buff);
+
+      offset = 0;
+      buff.clear();
+    }
+  }
+
+  return output;
+}
+
+i32
+main(const i32 argc, const char* const argv[])
+{
+  if (argc < 2)
+  {
+    utils::log<utils::ERR>("Not enough arguments.\n");
+  }
+
+  std::filesystem::path file_path(argv[1]);
+  utils::log("File: %s\n", file_path.string().c_str());
+
+  std::vector<u8> file_contents(files::read(file_path));
+  utils::log("File size: %zu\n", file_contents.size());
+
+  auto decide = [](const str_enc_type_t& enc)
+  {
+    switch (enc)
+    {
+    case str_enc_type_t::base64:
+    {
+      return "base64";
+    }
+    case str_enc_type_t::plain:
+    {
+      return "plain";
+    }
+    case str_enc_type_t::XOR:
+    {
+      return "XOR";
+    }
+    default:
+    {
+      return "plain";
+    }
+    }
+  };
+
+  for (const auto& [info, str] : extract_strings(file_contents))
+  {
+    utils::log("0x%llX | %s -> %s\n", info.addr, decide(info.str_enc), str.c_str());
+  }
+  return 0;
+}
