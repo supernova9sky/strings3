@@ -93,7 +93,7 @@ remove_whitespaces(const std::string_view& str, const std::string_view& whitespa
 std::optional<std::pair<str_info_t, std::string>>
 make_string_info(const std::string_view& str, const u64& str_offset)
 {
-  if ((str.length() > 3) and (utils::calc_shannon_entropy(str) > 2.5))
+  if ((str.length() > 3) and (utils::calc_shannon_entropy(str) > 3))
   {
     const str_info_t info{.addr = str_offset, .utf_type = utf_type_t::utf8, .str_enc = get_str_enc(str)};
     return std::pair<str_info_t, std::string>{info, str};
@@ -102,7 +102,7 @@ make_string_info(const std::string_view& str, const u64& str_offset)
 }
 
 char
-process_byte(const u8 byte)
+process_byte(const u8& byte)
 {
   if (utils::byte_to_char_type(byte) == utils::char_type_t::ascii_char)
   {

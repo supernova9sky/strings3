@@ -2,7 +2,7 @@
 
 #include "common.hpp"
 
-#include <map>
+#include <unordered_map>
 #include <cmath>
 #include <string>
 #include <utility>
@@ -77,7 +77,7 @@ calc_shannon_entropy(const std::string_view& str)
 {
   f32 entropy{0};
   const usize length = str.length();
-  std::map<char, f32> counts{};
+  std::unordered_map<char, f32> counts{};
   std::ranges::for_each(str, [&counts](const char& c) { counts[c]++; });
 
   for (const auto& [c, count] : counts)

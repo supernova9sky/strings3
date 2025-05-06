@@ -1,4 +1,3 @@
-#include <cctype>
 #include <filesystem>
 
 #include "headers/common.hpp"
@@ -16,16 +15,17 @@ main(const i32 argc, const char* const argv[])
   }
 
   const std::filesystem::path file_path(argv[1]);
-  utils::log("File: %s\n", file_path.string().c_str());
+  utils::log("File: %s.\n", file_path.string().c_str());
 
-  const std::vector<u8> file_contents(files::read(file_path));
-  utils::log("File size: %zu\n", file_contents.size());
-
-  if (file_contents.size() == 0)
+  const std::expected<std::vector<u8>, files::error_t> read_result = files::read(file_path);
+  if (read_result.has_value() == false)
   {
-    utils::log<utils::ERR>("File too small or doesn't exist.\n");
+    utils::log<utils::ERR>("Failed to read the file due to the following reason: %s.\n", files::error_to_str(read_result.error()).c_str());
     return 2;
   }
+
+  const std::vector<u8>& file_contents(read_result.value());
+  utils::log("File size: %zu.\n", file_contents.size());
 
   const auto decide = [](const strings::str_enc_type_t& enc)
   {
