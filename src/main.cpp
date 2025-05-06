@@ -15,7 +15,7 @@ main(const i32 argc, const char* const argv[])
     return 1;
   }
 
-  std::filesystem::path file_path(argv[1]);
+  const std::filesystem::path file_path(argv[1]);
   utils::log("File: %s\n", file_path.string().c_str());
 
   std::vector<u8> file_contents(files::read(file_path));
@@ -27,7 +27,7 @@ main(const i32 argc, const char* const argv[])
     return 2;
   }
 
-  auto decide = [](const strings::str_enc_type_t& enc)
+  const auto decide = [](const strings::str_enc_type_t& enc)
   {
     switch (enc)
     {
