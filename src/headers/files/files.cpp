@@ -12,7 +12,7 @@ read(const std::filesystem::path& file_path)
 {
   std::ifstream stream(file_path, std::ios::in);
   usize file_size{};
-  
+
   try
   {
     file_size = std::filesystem::file_size(file_path);
@@ -27,4 +27,4 @@ read(const std::filesystem::path& file_path)
 
   return read_file;
 }
-}
+} // namespace files

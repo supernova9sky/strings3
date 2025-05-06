@@ -1,30 +1,16 @@
 #include "strings.hpp"
 
+#include <algorithm>
+#include <ranges>
+#include <string>
+#include <ranges>
+
 #include "headers/utils.hpp"
 
 namespace strings
 {
-std::pair<std::string, bool>
-process_byte(const std::string& buff, const u8 byte)
+namespace
 {
-  if (byte == 0x0)
-  {
-    return {buff, true};
-  }
-
-  if (utils::byte_to_char_type(byte) == utils::char_type_t::ascii_char)
-  {
-    return {buff + static_cast<char>(byte), false};
-  }
-  // else if ((utils::byte_to_char_type(byte) == utils::char_type_t::ascii_ctl_char) and
-  //          (byte != '\a' and byte != '\v' and byte != '\b' and byte != '\n' and byte != '\r' and byte != '\0' and byte != '\x1F') and (buff.size() != 0))
-  // {
-  //   return {buff + static_cast<char>(byte), false};
-  // }
-
-  return {buff, true};
-}
-
 bool
 is_str_base64(const std::string_view& str)
 {
@@ -64,18 +50,18 @@ is_str_xor(const std::string_view& str)
   return false;
 }
 
-bool
-is_str_plain(const std::string_view& str)
-{
-  for (const char& c : str)
-  {
-    if (std::isprint(c) == false)
-    {
-      return false;
-    }
-  }
-  return true;
-}
+// bool
+// is_str_plain(const std::string_view& str)
+// {
+//   for (const char& c : str)
+//   {
+//     if (std::isprint(c) == false)
+//     {
+//       return false;
+//     }
+//   }
+//   return true;
+// }
 
 str_enc_type_t
 get_str_enc(const std::string_view& str)
@@ -91,34 +77,66 @@ get_str_enc(const std::string_view& str)
   return str_enc_type_t::plain;
 }
 
-using strings_output_t = std::vector<std::pair<str_info_t, std::string>>;
+std::string
+remove_whitespaces(const std::string_view& str, const std::string_view& whitespaces = " ")
+{
+  static const auto isnt_whitespace = [&whitespaces](const char& c) -> bool { return whitespaces.contains(c) == false; };
 
-strings_output_t
+  std::string s{str};
+
+  s.erase(std::ranges::find_if(std::ranges::reverse_view(s), isnt_whitespace).base(), s.end());
+  s.erase(s.begin(), std::ranges::find_if(s, isnt_whitespace));
+
+  return s;
+}
+
+std::optional<std::pair<str_info_t, std::string>>
+make_string_info(const std::string_view& str, const u64& str_offset)
+{
+  if ((str.length() > 3) and (utils::calc_shannon_entropy(str) > 2.5))
+  {
+    const str_info_t info{.addr = str_offset, .utf_type = utf_type_t::utf8, .str_enc = get_str_enc(str)};
+    return std::pair<str_info_t, std::string>{info, str};
+  }
+  return std::nullopt;
+}
+
+char
+process_byte(const u8 byte)
+{
+  if (utils::byte_to_char_type(byte) == utils::char_type_t::ascii_char)
+  {
+    return static_cast<char>(byte);
+  }
+
+  return 0;
+}
+} // namespace
+
+std::vector<std::pair<str_info_t, std::string>>
 extract_strings(const std::span<u8> bytes)
 {
-  strings_output_t output{};
-  std::string buff{};
-  u64 offset{};
+  std::vector<std::pair<str_info_t, std::string>> output{};
+  static const auto add_str_to_output = [&](const auto& a) { return output.emplace_back(std::move(a)); };
 
-  for (const u8& byte : bytes)
+  u64 file_offset{0};
+  u64 str_offset{0};
+  for (std::string str{""}; const u8& byte : bytes)
   {
-    ++offset;
+    const char new_char = process_byte(byte);
+    ++file_offset;
 
-    auto [new_buff, should_finalize] = process_byte(buff, byte);
+    if (new_char != 0)
+    {
+      str_offset = file_offset;
+      str += new_char;
+      continue;
+    }
 
-    if (should_finalize == false)
-    {
-      buff = std::move(new_buff);
-    }
-    else if ((new_buff.size() >= 3))
-    {
-      if (utils::calc_shannon_entropy(new_buff) > 3)
-      {
-        const str_info_t info{.addr = offset, .utf_type = utf_type_t::utf8, .str_enc = get_str_enc(new_buff)};
-        output.emplace_back(info, new_buff);
-      }
-      buff.clear();
-    }
+    str = remove_whitespaces(str);
+    make_string_info(str, str_offset - str.length()).transform(add_str_to_output);
+    str.clear();
+    str_offset = 0;
   }
 
   return output;

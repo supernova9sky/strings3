@@ -7,8 +7,5 @@
 
 namespace files
 {
-
-std::vector<u8>
-read(const std::filesystem::path& file_path);
-
+std::vector<u8> read(const std::filesystem::path& file_path);
 }
