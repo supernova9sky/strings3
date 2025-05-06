@@ -18,7 +18,7 @@ main(const i32 argc, const char* const argv[])
   const std::filesystem::path file_path(argv[1]);
   utils::log("File: %s\n", file_path.string().c_str());
 
-  std::vector<u8> file_contents(files::read(file_path));
+  const std::vector<u8> file_contents(files::read(file_path));
   utils::log("File size: %zu\n", file_contents.size());
 
   if (file_contents.size() == 0)

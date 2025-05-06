@@ -28,5 +28,5 @@ struct str_info_t
   str_enc_type_t str_enc;
 };
 
-std::vector<std::pair<str_info_t, std::string>> extract_strings(const std::span<u8> bytes);
+std::vector<std::pair<str_info_t, std::string>> extract_strings(std::span<const u8> bytes);
 } // namespace strings

@@ -114,7 +114,7 @@ process_byte(const u8 byte)
 } // namespace
 
 std::vector<std::pair<str_info_t, std::string>>
-extract_strings(const std::span<u8> bytes)
+extract_strings(std::span<const u8> bytes)
 {
   std::vector<std::pair<str_info_t, std::string>> output{};
   static const auto add_str_to_output = [&](const auto& a) { return output.emplace_back(std::move(a)); };
